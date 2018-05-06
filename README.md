@@ -73,7 +73,12 @@ scrobbleClient.updateScrobble(scrobble);
 <dependency>
     <groupId>net.beardbot</groupId>
     <artifactId>lastfm-simple-scrobble-client</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
+```
+
+### Enable debug logging
+```bash
+-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG
 ```
 
