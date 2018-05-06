@@ -172,7 +172,7 @@ public class ScrobbleClient {
      * @return A {@link List} containing all {@link Scrobble}s since the time defined in <b>since</b>.
      */
     public List<Scrobble> getScrobblesSince(final Temporal since){
-        return getScrobblesSince(since, config.getDefaultResultsPerPage());
+        return getScrobblesSince(since, config.getResultsPerPage());
     }
 
     /**
@@ -192,7 +192,7 @@ public class ScrobbleClient {
      * @return A {@link List} containing the last <b>amount</b> {@link Scrobble}s.
      */
     public List<Scrobble> getLastScrobbles(int amount){
-        int defaultResultsPerPage = config.getDefaultResultsPerPage();
+        int defaultResultsPerPage = config.getResultsPerPage();
         int resultsPerPage = amount > defaultResultsPerPage ? defaultResultsPerPage : amount;
         int pageLimit = amount > defaultResultsPerPage ? (amount / resultsPerPage) + (amount % resultsPerPage == 0 ? 0 : 1) : 1;
         return getScrobbles(null,resultsPerPage,pageLimit,amount);
@@ -252,7 +252,7 @@ public class ScrobbleClient {
             log.debug("Fetched scrobble page {}/{}",currentPage,recentTracks.getTotalPages());
 
             for (Track track : recentTracks.getPageResults()) {
-                if (track.isNowPlaying() && !config.isIncludePlayingTracksInScrobbles()){
+                if (track.isNowPlaying() && !config.isIncludePlayingTracks()){
                     continue;
                 }
 

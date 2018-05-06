@@ -16,7 +16,6 @@
  */
 package net.beardbot.lastfm.scrobbleclient;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -24,12 +23,17 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-@EqualsAndHashCode
 public class LastfmConfiguration {
 
-    private int apiCallLimitPerSecond = 5;
-    private int maxResultsPerPage = 1000;
-    private int defaultResultsPerPage = 50;
-    private long millisForCallLimit = 1039;
-    private boolean includePlayingTracksInScrobbles = false;
+    public static final int DEFAULT_API_CALL_LIMIT_PER_SECOND = 5;
+    public static final int DEFAULT_MAX_RESULTS_PER_PAGE = 1000;
+    public static final int DEFAULT_RESULTS_PER_PAGE = 50;
+    public static final long DEFAULT_MILLIS_FOR_CALL_LIMIT = 1039L;
+    public static final boolean DEFAULT_INCLUDE_PLAYING_TRACKS = false;
+
+    private int apiCallLimitPerSecond = DEFAULT_API_CALL_LIMIT_PER_SECOND;
+    private int maxResultsPerPage = DEFAULT_MAX_RESULTS_PER_PAGE;
+    private int resultsPerPage = DEFAULT_RESULTS_PER_PAGE;
+    private long millisForCallLimit = DEFAULT_MILLIS_FOR_CALL_LIMIT;
+    private boolean includePlayingTracks = DEFAULT_INCLUDE_PLAYING_TRACKS;
 }
