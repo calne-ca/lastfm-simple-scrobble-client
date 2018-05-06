@@ -68,7 +68,7 @@ public class TestUtils {
         return scrobble;
     }
 
-    static PaginatedResult<Track> createTrackList(int pageNumber, int totalPageNumber, int trackAmount){
+    static PaginatedResult<Track> createTrackList(int pageNumber, int totalPageNumber, int trackAmount, boolean includeOnePlayingTrack){
         PaginatedResult<Track> result = mock(PaginatedResult.class);
 
         List<Track> tracks = new ArrayList<>();
@@ -76,7 +76,7 @@ public class TestUtils {
         for (int i = 0; i < trackAmount; i++) {
             int offset = ( trackAmount * (pageNumber - 1) ) + i;
             Date date = Date.from(ZonedDateTime.now(ZoneOffset.UTC).minusHours(offset).toInstant());
-            tracks.add(createTrack(date));
+            tracks.add(createTrack(date, (includeOnePlayingTrack && i == 0)));
         }
 
         when(result.getPageResults()).thenReturn(tracks);
@@ -98,11 +98,12 @@ public class TestUtils {
         return result;
     }
 
-    static Track createTrack(Date date){
+    static Track createTrack(Date date, boolean nowPlaying){
         Track track = mock(Track.class);
         when(track.getArtist()).thenReturn(RandomStringUtils.randomAlphabetic(16));
         when(track.getName()).thenReturn(RandomStringUtils.randomAlphabetic(16));
         when(track.getPlayedWhen()).thenReturn(date);
+        when(track.isNowPlaying()).thenReturn(nowPlaying);
         return track;
     }
 }

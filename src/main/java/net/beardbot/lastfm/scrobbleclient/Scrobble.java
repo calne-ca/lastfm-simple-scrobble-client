@@ -30,16 +30,27 @@ public class Scrobble {
 
     private String artist;
     private String trackName;
+    private boolean nowPlaying;
     private Integer timestampSeconds;
     private ZonedDateTime timestamp;
 
     public Scrobble(Track track){
         this.artist = track.getArtist();
         this.trackName = track.getName();
-        this.timestampSeconds = Utils.dateToEpochSeconds(track.getPlayedWhen());
-        this.timestamp = Utils.epochSecondsToDateTime(this.timestampSeconds);
+        this.nowPlaying = track.isNowPlaying();
+
+        if (!track.isNowPlaying()){
+            this.timestampSeconds = Utils.dateToEpochSeconds(track.getPlayedWhen());
+            this.timestamp = Utils.epochSecondsToDateTime(this.timestampSeconds);
+        }
     }
 
+    /**
+     * Creates a {@link Scrobble} object from the passed data.
+     * @param artist The artist of the track.
+     * @param trackName The title of the track.
+     * @return A {@link Scrobble} object containing the given data.
+     */
     public static Scrobble of(final String artist, final String trackName){
         Scrobble scrobble = new Scrobble();
         scrobble.setArtist(artist);
@@ -47,6 +58,10 @@ public class Scrobble {
         return scrobble;
     }
 
+    /**
+     * Creates a copy of the {@link Scrobble} object.
+     * @return A {@link Scrobble} object containing the same data.
+     */
     public Scrobble clone(){
         Scrobble clonedScrobble = new Scrobble();
         clonedScrobble.setArtist(this.artist);
@@ -58,12 +73,22 @@ public class Scrobble {
 
     public void setTimestampSeconds(Integer timestampSeconds) {
         this.timestampSeconds = timestampSeconds;
-        this.timestamp = Utils.epochSecondsToDateTime(timestampSeconds);
+
+        if (timestampSeconds == null){
+            this.timestamp = null;
+        } else {
+            this.timestamp = Utils.epochSecondsToDateTime(timestampSeconds);
+        }
     }
 
     public void setTimestamp(ZonedDateTime timestamp) {
         this.timestamp = timestamp;
-        this.timestampSeconds = Utils.dateTimeToEpochSeconds(timestamp);
+
+        if (timestamp == null){
+            this.timestampSeconds = null;
+        } else {
+            this.timestampSeconds = Utils.dateTimeToEpochSeconds(timestamp);
+        }
     }
 
     @Override

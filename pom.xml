@@ -42,8 +42,8 @@
         <currentYear>${maven.build.timestamp}</currentYear>
         <author>Joscha Düringer</author>
 
-        <version.lastfm.api>0.1.2</version.lastfm.api>
-        <version.lastfm.unscrobbler>0.2-SNAPSHOT</version.lastfm.unscrobbler>
+        <lastfm.api.version>0.1.2</lastfm.api.version>
+        <lastfm.unscrobbler.version>0.2-SNAPSHOT</lastfm.unscrobbler.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lombok.version>1.16.20</lombok.version>
         <apache.commons.lang.version>3.0</apache.commons.lang.version>
@@ -64,12 +64,12 @@
         <dependency>
             <groupId>de.u-mass</groupId>
             <artifactId>lastfm-java</artifactId>
-            <version>${version.lastfm.api}</version>
+            <version>${lastfm.api.version}</version>
         </dependency>
         <dependency>
             <groupId>net.beardbot</groupId>
             <artifactId>lastfm-unscrobble</artifactId>
-            <version>${version.lastfm.unscrobbler}</version>
+            <version>${lastfm.unscrobbler.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

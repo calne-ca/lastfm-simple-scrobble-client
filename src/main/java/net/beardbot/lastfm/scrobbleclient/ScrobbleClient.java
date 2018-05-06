@@ -65,10 +65,13 @@ public class ScrobbleClient {
         this.callLimiter = callLimiter;
     }
 
-    public void setUserAgent(String userAgent){
-        lastfmAPI.getCaller().setUserAgent(userAgent);
-    }
-
+    /**
+     * Logs the client in to Last.fm.
+     * @param authenticationDetails The authentication details which contain API key, shared secret, username and password.
+     *                              None of these are mandatory by default.
+     *                              Which authentication details are needed depends on the operations you want to execute.
+     * @throws LastfmAuthenticationException If Last.fm authentication fails.
+     */
     public void login(final LastfmAuthenticationDetails authenticationDetails) throws LastfmAuthenticationException {
         this.authDetails = authenticationDetails;
 
@@ -78,6 +81,130 @@ public class ScrobbleClient {
         if (authenticationDetails.hasDataForDirectLogin()){
             loginWithUnscrobbler(authenticationDetails);
         }
+    }
+
+    /**
+     * Scrobbles a track to Last.fm.
+     * @param scrobble A {@link Scrobble} object containing track information.
+     * @return A persisted scrobble object that can be used for updating scrobble data.
+     */
+    public Scrobble scrobble(final Scrobble scrobble){
+        validateScrobble(scrobble,false);
+        authDetails.assureAllPermissions();
+        callLimiter.considerCallLimit();
+
+        if (scrobble.getTimestampSeconds() == null){
+            scrobble.setTimestampSeconds(currentSeconds());
+        }
+
+        log.info("Scrobbling {}",scrobble);
+        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),scrobble.getTimestampSeconds(),session);
+
+        return scrobbleManager.persist(scrobble);
+    }
+
+    /**
+     * Scrobbles a track to Last.fm.
+     * @param artist The artist of the track.
+     * @param trackName The title of the track.
+     * @return A persisted scrobble object that can be used for updating scrobble data.
+     */
+    public Scrobble scrobble(final String artist, final String trackName){
+        return scrobble(Scrobble.of(artist,trackName));
+    }
+
+    /**
+     * Removes a {@link Scrobble} from Last.fm.
+     * @param scrobble The {@link Scrobble} that shall be removed.
+     * @return true on success; false otherwise.
+     */
+    public boolean unscrobble(final Scrobble scrobble){
+        validateScrobble(scrobble,true);
+        authDetails.assurePermissionForDirectLogin();
+        callLimiter.considerCallLimit();
+
+        log.info("Unscrobbling {}",scrobble);
+
+        boolean success = unscrobbler.unscrobble(scrobble.getArtist(),scrobble.getTrackName(),scrobble.getTimestampSeconds());
+
+        if (success){
+            scrobbleManager.remove(scrobble);
+        }
+
+        return success;
+    }
+
+    /**
+     * Updates track data of an existing {@link Scrobble}.
+     * @param scrobble A persisted {@link Scrobble} object that shall be updated.
+     */
+    public void updateScrobble(final Scrobble scrobble){
+        validateScrobble(scrobble,true);
+        authDetails.assureAllPermissions();
+        callLimiter.considerCallLimit();
+
+        Scrobble originalScrobble = scrobbleManager.getOriginalScrobble(scrobble);
+
+        if (originalScrobble == null){
+            throw new UnmanagedScrobbleException(String.format("The given scrobble %s is not managed by a scrobble manager.",scrobble));
+        }
+
+        log.info("Scrobbling {}",scrobble);
+        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),originalScrobble.getTimestampSeconds(),session);
+
+        log.info("Unscrobbling {}",originalScrobble);
+        unscrobbler.unscrobble(originalScrobble.getArtist(),originalScrobble.getTrackName(),originalScrobble.getTimestampSeconds());
+
+        scrobbleManager.updateOriginalScrobble(scrobble);
+    }
+
+    /**
+     * Fetches all {@link Scrobble}s of the authenticated user from Last.fm.
+     * @return A {@link List} containing all {@link Scrobble}s.
+     */
+    public List<Scrobble> getAllScrobbles(){
+        return getScrobbles(null, config.getMaxResultsPerPage(), Integer.MAX_VALUE, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Fetches all {@link Scrobble}s of the authenticated user from a specific time until now.
+     * @param since A {@link Temporal} representing the time from when the {@link Scrobble}s should be fecthed.
+     * @return A {@link List} containing all {@link Scrobble}s since the time defined in <b>since</b>.
+     */
+    public List<Scrobble> getScrobblesSince(final Temporal since){
+        return getScrobblesSince(since, config.getDefaultResultsPerPage());
+    }
+
+    /**
+     * Fetches all {@link Scrobble}s of the authenticated user from a specific time until now.
+     * @param since A {@link Temporal} representing the time from when the {@link Scrobble}s should be fecthed.
+     * @param resultsPerPage The results per page that shall be fetched from Last.fm.
+     *                       This may for example be set to a higher value if the time defined in <b>since</b> is way in the past.
+     * @return A {@link List} containing all {@link Scrobble}s since the time defined in <b>since</b>.
+     */
+    public List<Scrobble> getScrobblesSince(final Temporal since, final int resultsPerPage){
+        return getScrobbles(since ,resultsPerPage, Integer.MAX_VALUE, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Fetches a certain amount of {@link Scrobble}s.
+     * @param amount The amount of {@link Scrobble}s that shall be fecthed
+     * @return A {@link List} containing the last <b>amount</b> {@link Scrobble}s.
+     */
+    public List<Scrobble> getLastScrobbles(int amount){
+        int defaultResultsPerPage = config.getDefaultResultsPerPage();
+        int resultsPerPage = amount > defaultResultsPerPage ? defaultResultsPerPage : amount;
+        int pageLimit = amount > defaultResultsPerPage ? (amount / resultsPerPage) + (amount % resultsPerPage == 0 ? 0 : 1) : 1;
+        return getScrobbles(null,resultsPerPage,pageLimit,amount);
+    }
+
+    /**
+     * Sets the user agent header that is being used for every Last.fm HTTP invocation.
+     * @param userAgent The user agent that shall be used.
+     */
+    public void setUserAgent(final String userAgent){
+        lastfmAPI.getCaller().setUserAgent(userAgent);
+        unscrobbler.setUserAgent(userAgent);
     }
 
     private void loginWithLastfmApi(final LastfmAuthenticationDetails authenticationDetails) throws LastfmAuthenticationException {
@@ -106,46 +233,14 @@ public class ScrobbleClient {
                 authenticationDetails.getSharedSecret());
     }
 
-    public void updateScrobble(Scrobble scrobble){
-        validateScrobble(scrobble,true);
-        authDetails.assureAllPermissions();
-        callLimiter.considerCallLimit();
-
-        Scrobble originalScrobble = scrobbleManager.getOriginalScrobble(scrobble);
-
-        if (originalScrobble == null){
-            throw new UnmanagedScrobbleException(String.format("The given scrobble %s is not managed by a scrobble manager.",scrobble));
-        }
-
-        log.info("Scrobbling {}",scrobble);
-        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),originalScrobble.getTimestampSeconds(),session);
-
-        log.info("Unscrobbling {}",originalScrobble);
-        unscrobbler.unscrobble(originalScrobble.getArtist(),originalScrobble.getTrackName(),originalScrobble.getTimestampSeconds());
-
-        scrobbleManager.updateOriginalScrobble(scrobble);
-    }
-
-    public List<Scrobble> getAllScrobbles(){
-        return getScrobbles(null, config.getMaxResultsPerPage(), Integer.MAX_VALUE);
-    }
-
-    public List<Scrobble> getScrobblesSince(Temporal since){
-        return getScrobblesSince(since, config.getDefaultResultsPerPage());
-    }
-
-    public List<Scrobble> getScrobblesSince(Temporal since, int resultsPerPage){
-        return getScrobbles(since ,resultsPerPage, Integer.MAX_VALUE);
-    }
-
-    public List<Scrobble> getScrobblesSince(Temporal since, int resultsPerPage, int pageLimit){
-        return getScrobbles(since ,resultsPerPage, pageLimit);
-    }
-
-    private List<Scrobble> getScrobbles(Temporal since, int resultsPerPage, int pageLimit) {
+    private List<Scrobble> getScrobbles(Temporal since, int resultsPerPage, int pageLimit, int totalLimit) {
         authDetails.assurePermissionForPublicUserData();
 
         ArrayList<Scrobble> scrobbles = new ArrayList<>();
+
+        if (resultsPerPage < 1 || pageLimit < 1 || totalLimit < 1 || Utils.isInFuture(since)){
+            return scrobbles;
+        }
 
         boolean finished = false;
         int currentPage = 1;
@@ -157,11 +252,15 @@ public class ScrobbleClient {
             log.debug("Fetched scrobble page {}/{}",currentPage,recentTracks.getTotalPages());
 
             for (Track track : recentTracks.getPageResults()) {
+                if (track.isNowPlaying() && !config.isIncludePlayingTracksInScrobbles()){
+                    continue;
+                }
+
                 Scrobble scrobble = createScrobble(track);
 
                 log.debug("Fetched scrobble {}", scrobble);
 
-                if (since != null){
+                if (since != null && scrobble.getTimestamp() != null){
                     Duration duration = Duration.between(since, scrobble.getTimestamp());
 
                     log.debug("Checking scrobble's timestamp. Since: {} Timestamp: {}.",since, scrobble.getTimestamp());
@@ -174,6 +273,12 @@ public class ScrobbleClient {
                 }
 
                 scrobbles.add(scrobble);
+
+                if (scrobbles.size() == totalLimit){
+                    log.debug("Finished scrobble fetching due to reaching the value defined in 'totalLimit' parameter.");
+                    finished = true;
+                    break;
+                }
             }
 
             if (currentPage >= pageLimit){
@@ -189,41 +294,6 @@ public class ScrobbleClient {
         }
 
         return scrobbles;
-    }
-
-    public Scrobble scrobble(Scrobble scrobble){
-        validateScrobble(scrobble,false);
-        authDetails.assureAllPermissions();
-        callLimiter.considerCallLimit();
-
-        if (scrobble.getTimestampSeconds() == null){
-            scrobble.setTimestampSeconds(currentSeconds());
-        }
-
-        log.info("Scrobbling {}",scrobble);
-        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),scrobble.getTimestampSeconds(),session);
-
-        return scrobbleManager.persist(scrobble);
-    }
-
-    public Scrobble scrobble(String artist, String trackName){
-        return scrobble(Scrobble.of(artist,trackName));
-    }
-
-    public boolean unscrobble(Scrobble scrobble){
-        validateScrobble(scrobble,true);
-        authDetails.assurePermissionForDirectLogin();
-        callLimiter.considerCallLimit();
-
-        log.info("Unscrobbling {}",scrobble);
-
-        boolean success = unscrobbler.unscrobble(scrobble.getArtist(),scrobble.getTrackName(),scrobble.getTimestampSeconds());
-
-        if (success){
-            scrobbleManager.remove(scrobble);
-        }
-
-        return success;
     }
 
     private void validateScrobble(Scrobble scrobble, boolean expectTimestamp){

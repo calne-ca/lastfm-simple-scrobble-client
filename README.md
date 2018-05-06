@@ -48,9 +48,9 @@ Temporal since = ZonedDateTime.now(ZoneOffset.UTC).minusDays(10);
 List<Scrobble> scrobblesSince = scrobbleClient.getScrobblesSince(since);
 ```
 
-**Fetching Scrobbles in a specific time range**
+**Fetching a certain amount of Scrobbles**
 ```java
-// TODO
+List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(100);
 ```
 
 **Scrobbling a Track**

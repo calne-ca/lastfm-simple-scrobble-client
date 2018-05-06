@@ -31,4 +31,5 @@ public class LastfmConfiguration {
     private int maxResultsPerPage = 1000;
     private int defaultResultsPerPage = 50;
     private long millisForCallLimit = 1039;
+    private boolean includePlayingTracksInScrobbles = false;
 }

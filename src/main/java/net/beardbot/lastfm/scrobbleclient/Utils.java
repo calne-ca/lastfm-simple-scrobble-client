@@ -16,9 +16,11 @@
  */
 package net.beardbot.lastfm.scrobbleclient;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.Temporal;
 import java.util.Date;
 
 class Utils {
@@ -42,5 +44,14 @@ class Utils {
 
     static ZonedDateTime currentTimestamp(){
         return ZonedDateTime.now(ZoneOffset.UTC);
+    }
+
+    static boolean isInFuture(Temporal temporal){
+        if (temporal == null){
+            return false;
+        }
+
+        Duration duration = Duration.between(temporal,currentTimestamp());
+        return duration.isNegative();
     }
 }
