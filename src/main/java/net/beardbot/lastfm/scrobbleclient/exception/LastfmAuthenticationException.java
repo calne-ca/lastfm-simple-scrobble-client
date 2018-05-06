@@ -16,7 +16,7 @@
  */
 package net.beardbot.lastfm.scrobbleclient.exception;
 
-public class LastfmAuthenticationException extends LastfmException {
+public class LastfmAuthenticationException extends Exception {
     public LastfmAuthenticationException(String message) {
         super(message);
     }

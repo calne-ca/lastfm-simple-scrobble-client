@@ -18,6 +18,7 @@ package net.beardbot.lastfm.scrobbleclient;
 
 import de.umass.lastfm.*;
 
+import de.umass.lastfm.scrobble.ScrobbleResult;
 import lombok.extern.slf4j.Slf4j;
 import net.beardbot.lastfm.scrobbleclient.exception.*;
 import net.beardbot.lastfm.unscrobble.Unscrobbler;
@@ -86,6 +87,8 @@ public class ScrobbleClient {
     /**
      * Scrobbles a track to Last.fm.
      * @param scrobble A {@link Scrobble} object containing track information.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If scrobbling failed.
      * @return A persisted scrobble object that can be used for updating scrobble data.
      */
     public Scrobble scrobble(final Scrobble scrobble){
@@ -98,7 +101,11 @@ public class ScrobbleClient {
         }
 
         log.info("Scrobbling {}",scrobble);
-        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),scrobble.getTimestampSeconds(),session);
+        ScrobbleResult scrobbleResult = lastfmAPI.scrobble(scrobble.getArtist(), scrobble.getTrackName(), scrobble.getTimestampSeconds(), session);
+
+        if (!scrobbleResult.isSuccessful()){
+            throw new ScrobbleException(String.format("Scrobbling of Scrobble %s failed.",scrobble),scrobble);
+        }
 
         return scrobbleManager.persist(scrobble);
     }
@@ -107,6 +114,8 @@ public class ScrobbleClient {
      * Scrobbles a track to Last.fm.
      * @param artist The artist of the track.
      * @param trackName The title of the track.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If scrobbling failed.
      * @return A persisted scrobble object that can be used for updating scrobble data.
      */
     public Scrobble scrobble(final String artist, final String trackName){
@@ -115,10 +124,13 @@ public class ScrobbleClient {
 
     /**
      * Removes a {@link Scrobble} from Last.fm.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If unscrobbling failed.
+     * @throws UnmanagedScrobbleException If the passed {@link Scrobble} object is not being managed by the scrobble manager.
+     *                                    This applies to every {@link Scrobble} object that has not be obtained by the {@link ScrobbleClient}.
      * @param scrobble The {@link Scrobble} that shall be removed.
-     * @return true on success; false otherwise.
      */
-    public boolean unscrobble(final Scrobble scrobble){
+    public void unscrobble(final Scrobble scrobble){
         validateScrobble(scrobble,true);
         authDetails.assurePermissionForDirectLogin();
         callLimiter.considerCallLimit();
@@ -129,13 +141,17 @@ public class ScrobbleClient {
 
         if (success){
             scrobbleManager.remove(scrobble);
+        } else {
+            throw new ScrobbleException(String.format("Unscrobbling of Scrobble %s failed.",scrobble),scrobble);
         }
-
-        return success;
     }
 
     /**
      * Updates track data of an existing {@link Scrobble}.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If scrobbling or unscrobbling failed.
+     * @throws UnmanagedScrobbleException If the passed {@link Scrobble} object is not being managed by the scrobble manager.
+     *                                    This applies to every {@link Scrobble} object that has not be obtained by the {@link ScrobbleClient}.
      * @param scrobble A persisted {@link Scrobble} object that shall be updated.
      */
     public void updateScrobble(final Scrobble scrobble){
@@ -150,16 +166,25 @@ public class ScrobbleClient {
         }
 
         log.info("Scrobbling {}",scrobble);
-        lastfmAPI.scrobble(scrobble.getArtist(),scrobble.getTrackName(),originalScrobble.getTimestampSeconds(),session);
+        ScrobbleResult scrobbleResult = lastfmAPI.scrobble(scrobble.getArtist(), scrobble.getTrackName(), originalScrobble.getTimestampSeconds(), session);
+
+        if (!scrobbleResult.isSuccessful()){
+            throw new ScrobbleException(String.format("Scrobbling of Scrobble %s failed.",scrobble),scrobble);
+        }
 
         log.info("Unscrobbling {}",originalScrobble);
-        unscrobbler.unscrobble(originalScrobble.getArtist(),originalScrobble.getTrackName(),originalScrobble.getTimestampSeconds());
+        boolean unscrobbleSuccess = unscrobbler.unscrobble(originalScrobble.getArtist(), originalScrobble.getTrackName(), originalScrobble.getTimestampSeconds());
+
+        if (!unscrobbleSuccess){
+            throw new ScrobbleException(String.format("Unscrobbling of Scrobble %s failed.",originalScrobble),scrobble,true);
+        }
 
         scrobbleManager.updateOriginalScrobble(scrobble);
     }
 
     /**
      * Fetches all {@link Scrobble}s of the authenticated user from Last.fm.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
      * @return A {@link List} containing all {@link Scrobble}s.
      */
     public List<Scrobble> getAllScrobbles(){
@@ -169,6 +194,7 @@ public class ScrobbleClient {
     /**
      * Fetches all {@link Scrobble}s of the authenticated user from a specific time until now.
      * @param since A {@link Temporal} representing the time from when the {@link Scrobble}s should be fecthed.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
      * @return A {@link List} containing all {@link Scrobble}s since the time defined in <b>since</b>.
      */
     public List<Scrobble> getScrobblesSince(final Temporal since){
@@ -180,6 +206,7 @@ public class ScrobbleClient {
      * @param since A {@link Temporal} representing the time from when the {@link Scrobble}s should be fecthed.
      * @param resultsPerPage The results per page that shall be fetched from Last.fm.
      *                       This may for example be set to a higher value if the time defined in <b>since</b> is way in the past.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
      * @return A {@link List} containing all {@link Scrobble}s since the time defined in <b>since</b>.
      */
     public List<Scrobble> getScrobblesSince(final Temporal since, final int resultsPerPage){
@@ -189,6 +216,7 @@ public class ScrobbleClient {
     /**
      * Fetches a certain amount of {@link Scrobble}s.
      * @param amount The amount of {@link Scrobble}s that shall be fecthed
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
      * @return A {@link List} containing the last <b>amount</b> {@link Scrobble}s.
      */
     public List<Scrobble> getLastScrobbles(int amount){

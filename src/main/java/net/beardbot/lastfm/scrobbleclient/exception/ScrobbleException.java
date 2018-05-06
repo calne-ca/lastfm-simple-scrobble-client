@@ -16,16 +16,20 @@
  */
 package net.beardbot.lastfm.scrobbleclient.exception;
 
-public class LastfmException extends Exception {
-    public LastfmException(String message) {
+import lombok.Getter;
+import net.beardbot.lastfm.scrobbleclient.Scrobble;
+
+@Getter
+public class ScrobbleException extends RuntimeException {
+    private boolean causedDuplicate = false;
+    private Scrobble scrobble = null;
+
+    public ScrobbleException(String message, Scrobble scrobble) {
         super(message);
+        this.scrobble = scrobble;
     }
-
-    public LastfmException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public LastfmException(Throwable cause) {
-        super(cause);
+    public ScrobbleException(String message, Scrobble scrobble, boolean causedDuplicate) {
+        this(message, scrobble);
+        this.causedDuplicate = causedDuplicate;
     }
 }

@@ -18,6 +18,7 @@ package net.beardbot.lastfm.scrobbleclient;
 
 import de.umass.lastfm.PaginatedResult;
 import de.umass.lastfm.Track;
+import de.umass.lastfm.scrobble.ScrobbleResult;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import java.time.ZoneOffset;
@@ -105,5 +106,17 @@ public class TestUtils {
         when(track.getPlayedWhen()).thenReturn(date);
         when(track.isNowPlaying()).thenReturn(nowPlaying);
         return track;
+    }
+
+    static ScrobbleResult createSuccessfulScrobbleResult(){
+        ScrobbleResult scrobbleResult = mock(ScrobbleResult.class);
+        when(scrobbleResult.isSuccessful()).thenReturn(true);
+        return scrobbleResult;
+    }
+
+    static ScrobbleResult createUnsuccessfulScrobbleResult(){
+        ScrobbleResult scrobbleResult = mock(ScrobbleResult.class);
+        when(scrobbleResult.isSuccessful()).thenReturn(false);
+        return scrobbleResult;
     }
 }
