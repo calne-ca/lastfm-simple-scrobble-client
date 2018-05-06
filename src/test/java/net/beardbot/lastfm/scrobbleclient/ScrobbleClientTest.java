@@ -71,6 +71,10 @@ public class ScrobbleClientTest {
     @Before
     public void setUp() {
         config = new LastfmConfiguration();
+        config.setIncludePlayingTracksInScrobbles(true);
+        config.setDefaultResultsPerPage(50);
+        config.setMaxResultsPerPage(1000);
+
         scrobbleManager = new ScrobbleManager();
         sufficientAuthDetails = TestUtils.createSufficientAuthDetails();
 
@@ -122,7 +126,7 @@ public class ScrobbleClientTest {
     }
 
     @Test
-    public void unscrobble_throwsIllegalArgumentException_whenTrackIsMissingTimestamp() throws Exception {
+    public void unscrobble_throwsIllegalArgumentException_whenScrobbleIsMissingTimestamp() throws Exception {
         expectedException.expect(IllegalArgumentException.class);
 
         scrobbleClient.login(TestUtils.createAuthDetailsWithApiKeyAndUsername());
@@ -235,12 +239,11 @@ public class ScrobbleClientTest {
         scrobbleClient.login(TestUtils.createAuthDetailsWithUsernameAndPassword());
         scrobbleClient.getAllScrobbles();
     }
-
     @Test
     public void getAllScrobbles_returnsAllScrobbles() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getMaxResultsPerPage());
-        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, config.getMaxResultsPerPage());
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getMaxResultsPerPage(), false);
+        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, config.getMaxResultsPerPage(), false);
 
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getMaxResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 2, config.getMaxResultsPerPage(), authDetails.getApiKey())).thenReturn(result2);
@@ -250,7 +253,6 @@ public class ScrobbleClientTest {
 
         assertThat(scrobbles.size(),is(result1.getPageResults().size() + result2.getPageResults().size()));
     }
-
     @Test
     public void getAllScrobbles_emptyResultReturnsEmptyList() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
@@ -263,18 +265,142 @@ public class ScrobbleClientTest {
 
         assertThat(scrobbles.size(),is(0));
     }
-
     @Test
-    public void getAllScrobblesSince_throwsLastfmInsufficientAuthenticationDataException_whenNecessaryAuthenticationDetailsAreMissing() throws Exception {
+    public void getAllScrobbles_returnsAllScrobbles_withNowPlayingTrack() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getMaxResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getMaxResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getAllScrobbles();
+
+        assertThat(scrobbles.size(),is(result.getPageResults().size()));
+    }
+    @Test
+    public void getAllScrobbles_excludesNowPlayingTrack_whenExcludeConfigured() throws Exception {
+        config.setIncludePlayingTracksInScrobbles(false);
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 1, config.getMaxResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getMaxResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getAllScrobbles();
+
+        assertThat(scrobbles.size(),is(result1.getPageResults().size()-1));
+    }
+    @Test
+    public void getLastScrobbles_loadsNextPage_whenAmountBiggerThanDefaultResultsPerPage() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage(), false);
+        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, config.getDefaultResultsPerPage(), false);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 2, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result2);
+
+        scrobbleClient.login(authDetails);
+        scrobbleClient.getLastScrobbles(config.getDefaultResultsPerPage()+1);
+
+        verify(lastfmAPI,times(1)).getRecentTracks(authDetails.getUsername(),1,config.getDefaultResultsPerPage(),authDetails.getApiKey());
+        verify(lastfmAPI,times(1)).getRecentTracks(authDetails.getUsername(),2,config.getDefaultResultsPerPage(),authDetails.getApiKey());
+    }
+    @Test
+    public void getLastScrobbles_onlyLoadsFirstPage_whenAmountNotBiggerThanDefaultResultsPerPage() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage(), false);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
+
+        scrobbleClient.login(authDetails);
+        scrobbleClient.getLastScrobbles(config.getDefaultResultsPerPage());
+
+        verify(lastfmAPI,times(1)).getRecentTracks(authDetails.getUsername(),1,config.getDefaultResultsPerPage(),authDetails.getApiKey());
+        verify(lastfmAPI,times(0)).getRecentTracks(authDetails.getUsername(),2,config.getDefaultResultsPerPage(),authDetails.getApiKey());
+    }
+    @Test
+    public void getLastScrobbles_returnsEmptyList_whenAmountIsZero() throws Exception {
+        scrobbleClient.login(TestUtils.createAuthDetailsWithApiKeyAndUsername());
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(0);
+
+        assertThat(scrobbles.size(),is(0));
+    }
+    @Test
+    public void getLastScrobbles_loadsCorrectAmountOverOnePage() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage(), false);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, 32, authDetails.getApiKey())).thenReturn(result1);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(32);
+
+        assertThat(scrobbles.size(),is(32));
+    }
+    @Test
+    public void getLastScrobbles_loadsCorrectAmountOverTwoPages() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage(), false);
+        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, config.getDefaultResultsPerPage(), false);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 2, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result2);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(64);
+
+        assertThat(scrobbles.size(),is(64));
+    }
+    @Test
+    public void getLastScrobbles_loadsCorrectAmount_withNowPlayingTrack() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(config.getDefaultResultsPerPage());
+
+        assertThat(scrobbles.size(),is(result.getPageResults().size()));
+    }
+    @Test
+    public void getLastScrobbles_excludesNowPlayingTrack_whenExcludeConfigured() throws Exception {
+        config.setIncludePlayingTracksInScrobbles(false);
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(config.getDefaultResultsPerPage());
+
+        assertThat(scrobbles.size(),is(result.getPageResults().size()-1));
+    }
+    @Test
+    public void getLastScrobbles_loadsCorrectAmount_whenAmountBiggerThanResults() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, 50, false);
+        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, 13, false);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 2, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result2);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(5000);
+
+        assertThat(scrobbles.size(),is(result1.getPageResults().size() + result2.getPageResults().size()));
+    }
+    @Test
+    public void getScrobblesSince_throwsLastfmInsufficientAuthenticationDataException_whenNecessaryAuthenticationDetailsAreMissing() throws Exception {
         expectedException.expect(LastfmInsufficientAuthenticationDataException.class);
 
         scrobbleClient.login(TestUtils.createAuthDetailsWithUsernameAndPassword());
         scrobbleClient.getScrobblesSince(LocalDateTime.now());
     }
     @Test
-    public void getAllScrobblesSince_dateAfterNow_returnsEmptyList() throws Exception {
+    public void getScrobblesSince_dateInFuture_returnsEmptyList() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result = TestUtils.createTrackList(1, 2, config.getMaxResultsPerPage());
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage(), false);
 
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
 
@@ -284,9 +410,16 @@ public class ScrobbleClientTest {
         assertThat(scrobbles.size(),is(0));
     }
     @Test
-    public void getAllScrobblesSince_dateInPast_returnsCompleteList() throws Exception {
+    public void getScrobblesSince_dateInFuture_doesNotInvokeLastfmApi() throws Exception {
+        scrobbleClient.login(TestUtils.createAuthDetailsWithApiKeyAndUsername());
+        scrobbleClient.getScrobblesSince(LocalDateTime.now().plusSeconds(15), config.getDefaultResultsPerPage());
+
+        verify(lastfmAPI,times(0)).getRecentTracks(any(),anyInt(),anyInt(),any());
+    }
+    @Test
+    public void getScrobblesSince_dateInPast_returnsCompleteList() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage());
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), false);
 
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
 
@@ -296,9 +429,9 @@ public class ScrobbleClientTest {
         assertThat(scrobbles.size(),is(result.getPageResults().size()));
     }
     @Test
-    public void getAllScrobblesSince_fiveScrobblesSinceDate_returnsListWithFiveScrobbles() throws Exception {
+    public void getScrobblesSince_fiveScrobblesSinceDate_returnsListWithFiveScrobbles() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage());
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), false);
 
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
 
@@ -308,23 +441,9 @@ public class ScrobbleClientTest {
         assertThat(scrobbles.size(),is(5));
     }
     @Test
-    public void getAllScrobblesSince_pageLimitOfOne_returnsListWithScrobblesFromFirstPage() throws Exception {
+    public void getScrobblesSince_resultLimit_triggersLastfmApiWithResultLimit() throws Exception {
         LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result1 = TestUtils.createTrackList(1, 2, config.getDefaultResultsPerPage());
-        PaginatedResult<Track> result2 = TestUtils.createTrackList(2, 2, config.getDefaultResultsPerPage());
-
-        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result1);
-        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 2, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result2);
-
-        scrobbleClient.login(authDetails);
-        List<Scrobble> scrobbles = scrobbleClient.getScrobblesSince(LocalDateTime.now().minusYears(30), config.getDefaultResultsPerPage(),1);
-
-        assertThat(scrobbles.size(),is(result1.getPageResults().size()));
-    }
-    @Test
-    public void getAllScrobblesSince_resultLimit_triggersLastfmApiWithResultLimit() throws Exception {
-        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
-        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, 39);
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, 39, false);
 
         when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, 39, authDetails.getApiKey())).thenReturn(result);
 
@@ -332,6 +451,31 @@ public class ScrobbleClientTest {
         List<Scrobble> scrobbles = scrobbleClient.getScrobblesSince(LocalDateTime.now().minusYears(30), 39);
 
         assertThat(scrobbles.size(),is(39));
+    }
+    @Test
+    public void getScrobblesSince_correctAmountOfScrobbles_withNowPlayingTrack() throws Exception {
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getScrobblesSince(LocalDateTime.now().minusYears(30), config.getDefaultResultsPerPage());
+
+        assertThat(scrobbles.size(),is(result.getPageResults().size()));
+    }
+    @Test
+    public void getScrobblesSince_excludesNowPlayingTrack_whenExcludeConfigured() throws Exception {
+        config.setIncludePlayingTracksInScrobbles(false);
+        LastfmAuthenticationDetails authDetails = TestUtils.createAuthDetailsWithApiKeyAndUsername();
+        PaginatedResult<Track> result = TestUtils.createTrackList(1, 1, config.getDefaultResultsPerPage(), true);
+
+        when(lastfmAPI.getRecentTracks(authDetails.getUsername(), 1, config.getDefaultResultsPerPage(), authDetails.getApiKey())).thenReturn(result);
+
+        scrobbleClient.login(authDetails);
+        List<Scrobble> scrobbles = scrobbleClient.getScrobblesSince(LocalDateTime.now().minusYears(30), config.getDefaultResultsPerPage());
+
+        assertThat(scrobbles.size(),is(result.getPageResults().size()-1));
     }
 
     @Test

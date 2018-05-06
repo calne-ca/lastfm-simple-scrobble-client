@@ -29,11 +29,11 @@ class ScrobbleManager {
         return persistedScrobble;
     }
 
-    public void remove(Scrobble persistedScrobble){
+    void remove(Scrobble persistedScrobble){
         scrobbles.remove(persistedScrobble);
     }
 
-    public int size(){
+    int size(){
         return scrobbles.size();
     }
 
