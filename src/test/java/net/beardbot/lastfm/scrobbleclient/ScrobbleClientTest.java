@@ -230,6 +230,16 @@ public class ScrobbleClientTest {
         scrobbleClient.scrobble(TestUtils.createScrobbleWithTimestamp());
     }
     @Test
+    public void scrobble_throwsScrobbleException_whenScrobblingIsIgnored() throws Exception {
+        expectedException.expect(ScrobbleException.class);
+
+        ScrobbleResult scrobbleResult = TestUtils.createIgnoredScrobbleResult();
+        when(lastfmAPI.scrobble(anyString(),anyString(),anyInt(),any(Session.class))).thenReturn(scrobbleResult);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.scrobble(TestUtils.createScrobbleWithTimestamp());
+    }
+    @Test
     public void scrobble_thrownScrobbleException_containsScrobbleData() throws Exception {
         Scrobble scrobble = TestUtils.createScrobbleWithTimestamp();
         Scrobble persistedScrobble = scrobbleManager.persist(scrobble);
@@ -564,6 +574,19 @@ public class ScrobbleClientTest {
 
         scrobbleClient.login(TestUtils.createSufficientAuthDetails());
         scrobbleClient.updateScrobble(TestUtils.createScrobbleWithTimestamp());
+    }
+    @Test
+    public void updateScrobble_throwsScrobbleException_whenScrobblingIsIgnored() throws Exception {
+        expectedException.expect(ScrobbleException.class);
+
+        Scrobble scrobble = TestUtils.createScrobbleWithTimestamp();
+        Scrobble persistedScrobble = scrobbleManager.persist(scrobble);
+
+        ScrobbleResult scrobbleResult = TestUtils.createIgnoredScrobbleResult();
+        when(lastfmAPI.scrobble(anyString(),anyString(),anyInt(),any(Session.class))).thenReturn(scrobbleResult);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.updateScrobble(persistedScrobble);
     }
     @Test
     public void updateScrobble_throwsScrobbleException_whenScrobblingFails() throws Exception {

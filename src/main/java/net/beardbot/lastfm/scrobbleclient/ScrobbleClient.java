@@ -103,7 +103,7 @@ public class ScrobbleClient {
         log.info("Scrobbling {}",scrobble);
         ScrobbleResult scrobbleResult = lastfmAPI.scrobble(scrobble.getArtist(), scrobble.getTrackName(), scrobble.getTimestampSeconds(), session);
 
-        if (!scrobbleResult.isSuccessful()){
+        if (!scrobbleResult.isSuccessful() || scrobbleResult.isIgnored()){
             throw new ScrobbleException(String.format("Scrobbling of Scrobble %s failed.",scrobble),scrobble);
         }
 
@@ -168,7 +168,7 @@ public class ScrobbleClient {
         log.info("Scrobbling {}",scrobble);
         ScrobbleResult scrobbleResult = lastfmAPI.scrobble(scrobble.getArtist(), scrobble.getTrackName(), originalScrobble.getTimestampSeconds(), session);
 
-        if (!scrobbleResult.isSuccessful()){
+        if (!scrobbleResult.isSuccessful() || scrobbleResult.isIgnored()){
             throw new ScrobbleException(String.format("Scrobbling of Scrobble %s failed.",scrobble),scrobble);
         }
 
@@ -310,10 +310,10 @@ public class ScrobbleClient {
             }
 
             if (currentPage >= pageLimit){
-                log.debug("Finished scrobble fetching due to reaching the value defined in 'pageLimit'.");
+                log.debug("Finished scrobble fetching due to reaching the value defined in 'pageLimit' parameter.");
                 finished = true;
             }
-            if (currentPage >= recentTracks.getTotalPages()){
+            else if (currentPage >= recentTracks.getTotalPages()){
                 log.debug("Finished scrobble fetching due to end of results.");
                 finished = true;
             }

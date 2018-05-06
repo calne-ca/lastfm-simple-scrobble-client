@@ -109,14 +109,19 @@ public class TestUtils {
     }
 
     static ScrobbleResult createSuccessfulScrobbleResult(){
-        ScrobbleResult scrobbleResult = mock(ScrobbleResult.class);
-        when(scrobbleResult.isSuccessful()).thenReturn(true);
-        return scrobbleResult;
+        return createScrobbleResult(true,false);
+    }
+    static ScrobbleResult createUnsuccessfulScrobbleResult(){
+        return createScrobbleResult(false,false);
+    }
+    static ScrobbleResult createIgnoredScrobbleResult(){
+        return createScrobbleResult(true,true);
     }
 
-    static ScrobbleResult createUnsuccessfulScrobbleResult(){
+    private static ScrobbleResult createScrobbleResult(boolean successful, boolean ignored){
         ScrobbleResult scrobbleResult = mock(ScrobbleResult.class);
-        when(scrobbleResult.isSuccessful()).thenReturn(false);
+        when(scrobbleResult.isSuccessful()).thenReturn(successful);
+        when(scrobbleResult.isIgnored()).thenReturn(ignored);
         return scrobbleResult;
     }
 }
