@@ -6,7 +6,7 @@
 
     <groupId>net.beardbot</groupId>
     <artifactId>lastfm-simple-scrobble-client</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
 
     <name>${project.groupId}:${project.artifactId}</name>
     <description>A simple scrobble client for Last.fm</description>
@@ -43,7 +43,7 @@
         <author>Joscha Düringer</author>
 
         <lastfm.api.version>0.1.2</lastfm.api.version>
-        <lastfm.unscrobbler.version>0.3-SNAPSHOT</lastfm.unscrobbler.version>
+        <lastfm.unscrobbler.version>0.3</lastfm.unscrobbler.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lombok.version>1.16.20</lombok.version>
         <apache.commons.lang.version>3.0</apache.commons.lang.version>
