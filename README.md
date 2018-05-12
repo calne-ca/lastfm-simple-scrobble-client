@@ -2,7 +2,7 @@
 
 This client uses [jkovac's](https://github.com/jkovacs) [lastfm-java](https://github.com/jkovacs/lastfm-java) library for calls of the official [Last.fm API](https://www.last.fm/api/intro) as well as the [lastfm-unscrobble-java](https://github.com/calne-ca/lastfm-unscrobble-java) library for unscrobbling and updating Scrobbles.
 
-The point of this library is to simplify all interactions with Last.fm concerning scrobbles as well as providing extended features - relying on official and unofficial features of Last.fm - such as scrobble updating.
+The purpose of this library is to simplify all interactions with Last.fm concerning scrobbles as well as providing extended features - relying on official and unofficial features of Last.fm - such as scrobble updating.
 
 ### Usage
 
