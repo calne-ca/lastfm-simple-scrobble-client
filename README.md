@@ -56,6 +56,11 @@ List<Scrobble> scrobbles = scrobbleClient.getLastScrobbles(100);
 Scrobble scrobble = scrobbleClient.scrobble("LIQ","[un]INSOMNIA");
 ```
 
+**Setting the *now playing* status**
+```java
+Scrobble scrobble = scrobbleClient.nowPlaying("LIQ","[un]INSOMNIA");
+```
+
 **Unscrobbling a Scrobble**
 ```java
 Scrobble lastScrobble = scrobbles.get(0);
