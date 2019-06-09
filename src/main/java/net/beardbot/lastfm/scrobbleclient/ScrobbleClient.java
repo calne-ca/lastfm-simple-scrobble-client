@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018 Joscha Düringer
+ * Copyright (C) 2019 Joscha Düringer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -120,6 +120,40 @@ public class ScrobbleClient {
      */
     public Scrobble scrobble(final String artist, final String trackName){
         return scrobble(Scrobble.of(artist,trackName));
+    }
+
+    /**
+     * Sends the now playing status for a track to Last.fm.
+     * @param scrobble A {@link Scrobble} object containing track information.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If scrobbling failed.
+     * @return A persisted scrobble object that can be used for updating scrobble data.
+     */
+    public Scrobble nowPlaying(final Scrobble scrobble){
+        validateScrobble(scrobble,false);
+        authDetails.assureAllPermissions();
+        callLimiter.considerCallLimit();
+
+        log.info("Setting now playing status {}",scrobble);
+        ScrobbleResult scrobbleResult = lastfmAPI.updateNowPlaying(scrobble.getArtist(), scrobble.getTrackName(), session);
+
+        if (!scrobbleResult.isSuccessful() || scrobbleResult.isIgnored()){
+            throw new ScrobbleException(String.format("Setting now playing status of Scrobble %s failed.",scrobble),scrobble);
+        }
+
+        return scrobbleManager.persist(scrobble);
+    }
+
+    /**
+     * Sends the now playing status for a track to Last.fm.
+     * @param artist The artist of the track.
+     * @param trackName The title of the track.
+     * @throws LastfmInsufficientAuthenticationDataException If the provided authentication details are insufficient for this operation.
+     * @throws ScrobbleException If scrobbling failed.
+     * @return A persisted scrobble object that can be used for updating scrobble data.
+     */
+    public Scrobble nowPlaying(final String artist, final String trackName){
+        return nowPlaying(Scrobble.of(artist,trackName));
     }
 
     /**

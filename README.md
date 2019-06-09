@@ -73,7 +73,7 @@ scrobbleClient.updateScrobble(scrobble);
 <dependency>
     <groupId>net.beardbot</groupId>
     <artifactId>lastfm-simple-scrobble-client</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 

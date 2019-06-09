@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018 Joscha Düringer
+ * Copyright (C) 2019 Joscha Düringer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,11 @@ class DefaultLastfmAPI implements LastfmAPI {
     @Override
     public ScrobbleResult scrobble(String artist, String trackname, int timestamp, Session session) {
         return Track.scrobble(artist,trackname,timestamp,session);
+    }
+
+    @Override
+    public ScrobbleResult updateNowPlaying(String artist, String trackname, Session session){
+        return Track.updateNowPlaying(artist, trackname, session);
     }
 
     @Override

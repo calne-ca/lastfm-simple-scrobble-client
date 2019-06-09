@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018 Joscha Düringer
+ * Copyright (C) 2019 Joscha Düringer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,12 @@ import de.umass.lastfm.scrobble.ScrobbleResult;
 
 interface LastfmAPI {
     PaginatedResult<Track> getRecentTracks(String user, int page, int limit, String apiKey);
+
     ScrobbleResult scrobble(String artist, String trackname, int timestamp, Session session);
+
+    ScrobbleResult updateNowPlaying(String artist, String trackname, Session session);
+
     Session getSession(String username, String password, String apiKey, String secret);
+
     Caller getCaller();
 }
