@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018 Joscha Düringer
+ * Copyright (C) 2019 Joscha Düringer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ public class ScrobbleClientTest {
         when(lastfmAPI.getSession(any(),any(),any(),any())).thenReturn(session);
         when(lastfmAPI.getCaller()).thenReturn(caller);
         when(lastfmAPI.scrobble(anyString(),anyString(),anyInt(),eq(session))).thenReturn(scrobbleResult);
+        when(lastfmAPI.updateNowPlaying(anyString(),anyString(),eq(session))).thenReturn(scrobbleResult);
         when(unscrobbler.unscrobble(anyString(),anyString(),anyInt())).thenReturn(true);
 
         scrobbleClient = new ScrobbleClient(config,lastfmAPI,unscrobbler,scrobbleManager,lastfmApiCallLimiter);
@@ -287,6 +288,95 @@ public class ScrobbleClientTest {
 
         scrobbleClient.scrobble(scrobble.getArtist(),scrobble.getTrackName());
         verify(lastfmAPI,times(2)).scrobble(eq(scrobble.getArtist()),eq(scrobble.getTrackName()),anyInt(),eq(session));
+    }
+
+    @Test
+    public void nowPlaying_throwsIllegalArgumentException_whenArtistIsMissing() throws Exception {
+        expectedException.expect(IllegalArgumentException.class);
+
+        Scrobble scrobble = TestUtils.createScrobbleWithoutTimestamp();
+        scrobble.setArtist(null);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.nowPlaying(scrobble);
+    }
+    @Test
+    public void nowPlaying_throwsIllegalArgumentException_whenTracknameIsMissing() throws Exception {
+        expectedException.expect(IllegalArgumentException.class);
+
+        Scrobble scrobble = TestUtils.createScrobbleWithoutTimestamp();
+        scrobble.setTrackName(null);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.nowPlaying(scrobble);
+    }
+    @Test
+    public void nowPlaying_throwsLastfmInsufficientAuthenticationDataException_whenNecessaryAuthenticationDetailsAreMissing() throws Exception {
+        expectedException.expect(LastfmInsufficientAuthenticationDataException.class);
+
+        scrobbleClient.login(TestUtils.createAuthDetailsWithApiKeyAndUsername());
+        scrobbleClient.nowPlaying(TestUtils.createScrobbleWithTimestamp());
+    }
+    @Test
+    public void nowPlaying_throwsScrobbleException_whenScrobblingFails() throws Exception {
+        expectedException.expect(ScrobbleException.class);
+
+        ScrobbleResult scrobbleResult = TestUtils.createUnsuccessfulScrobbleResult();
+        when(lastfmAPI.updateNowPlaying(anyString(),anyString(),any(Session.class))).thenReturn(scrobbleResult);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.nowPlaying(TestUtils.createScrobbleWithTimestamp());
+    }
+    @Test
+    public void nowPlaying_throwsScrobbleException_whenScrobblingIsIgnored() throws Exception {
+        expectedException.expect(ScrobbleException.class);
+
+        ScrobbleResult scrobbleResult = TestUtils.createIgnoredScrobbleResult();
+        when(lastfmAPI.updateNowPlaying(anyString(),anyString(),any(Session.class))).thenReturn(scrobbleResult);
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.nowPlaying(TestUtils.createScrobbleWithTimestamp());
+    }
+    @Test
+    public void nowPlaying_thrownScrobbleException_containsScrobbleData() throws Exception {
+        Scrobble scrobble = TestUtils.createScrobbleWithoutTimestamp();
+        Scrobble persistedScrobble = scrobbleManager.persist(scrobble);
+
+        ScrobbleResult scrobbleResult = TestUtils.createUnsuccessfulScrobbleResult();
+        when(lastfmAPI.updateNowPlaying(anyString(),anyString(),any(Session.class))).thenReturn(scrobbleResult);
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+
+        try{
+            scrobbleClient.nowPlaying(persistedScrobble);
+            fail();
+        } catch (ScrobbleException e){
+            assertThat(e.getScrobble(),is(persistedScrobble));
+            assertThat(e.isCausedDuplicate(),is(false));
+        }
+    }
+    @Test
+    public void nowPlaying_addsScrobbleToScrobbleManager() throws Exception {
+        Scrobble scrobble = TestUtils.createScrobbleWithoutTimestamp();
+        Scrobble persistedScrobble = scrobbleManager.persist(scrobble);
+
+        assertThat(scrobbleManager.size(),is(1));
+
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+        scrobbleClient.nowPlaying(persistedScrobble);
+
+        assertThat(scrobbleManager.size(),is(2));
+    }
+
+    @Test
+    public void nowPlaying_triggersLastfmApi() throws Exception {
+        Scrobble scrobble = TestUtils.createScrobbleWithoutTimestamp();
+        scrobbleClient.login(TestUtils.createSufficientAuthDetails());
+
+        scrobbleClient.nowPlaying(scrobble);
+        verify(lastfmAPI,times(1)).updateNowPlaying(scrobble.getArtist(),scrobble.getTrackName(),session);
+
+        scrobbleClient.nowPlaying(scrobble.getArtist(),scrobble.getTrackName());
+        verify(lastfmAPI,times(2)).updateNowPlaying(eq(scrobble.getArtist()),eq(scrobble.getTrackName()),eq(session));
     }
 
     @Test
